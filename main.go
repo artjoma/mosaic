@@ -23,7 +23,7 @@ func main() {
 func setup(appCfg *types.AppConfig) {
 	database := mosaicdb.NewDatabase(appCfg.DbPath)
 	storage := storage.NewStorage()
-	engine, err := engine.NewEngine(appCfg.FilesTempFolder, database, storage, int(appCfg.FileUploadWorkersCount), int(appCfg.FileDownloadWorkersCount))
+	engine, err := engine.NewEngine(appCfg.FilesTempFolder, database, storage, int(appCfg.FileUploadWorkersCount))
 	if err != nil {
 		panic(err)
 	}

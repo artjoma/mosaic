@@ -23,7 +23,7 @@ type Engine struct {
 }
 
 func NewEngine(tempFolder string, db *mosaicdb.Database, dataStorage *storage.Storage,
-	uploadWorkersCount int, downloadWorkersCount int) (*Engine, error) {
+	uploadWorkersCount int) (*Engine, error) {
 	// create folder if not exists
 	err := os.MkdirAll(tempFolder, 0774)
 	slog.Info("Create dir", "path", tempFolder, "err", err)
