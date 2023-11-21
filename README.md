@@ -9,7 +9,7 @@ Mosaic is POC of distributed file storage.
  * Internal storage based on embedded Pebble key value database.
  * Concurrent upload and download.
  * File chunks id and file id based on Blake3s hash function.
- * HTTP API with common functionality 
+ * HTTP API with common functionality.
 ### Limitation
  * Max file chunk per shard 512Mb
 
