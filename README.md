@@ -6,8 +6,8 @@ Mosaic is POC of distributed file storage.
  * Add new shards on the flight. All files will be rebalanced.
  * Lz4 file compression.
  * Shard based on Apache KVRocks(RocksDB under the hood) and Redis protocol.
- * Internal storage based on embedded Pebble key value database.
- * Concurrent upload and download.
+ * Internal storage based on embedded Pebble key value database. Information about file stored at MsgPack format.
+ * API allow concurrently upload and download files.
  * File chunks id and file id based on Blake3s hash function.
  * HTTP API with common functionality.
 ### Limitation
