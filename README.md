@@ -3,7 +3,7 @@
 Mosaic is POC of distributed file storage.
 
 ### Key fetures
- * Add new shards on the flight. All files will be rebalanced.
+ * Add new shards on the flight. All shards will be rebalanced.
  * Lz4 file compression.
  * Shard based on Apache KVRocks(RocksDB under the hood) and Redis protocol.
  * Internal storage based on embedded Pebble key value database. Information about file stored at MsgPack format.
