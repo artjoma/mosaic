@@ -86,7 +86,12 @@ func (uploader *FileUploader) fileUploadWorker(uploadFileCmd *PutFileCmd, worker
 	uploader.engine.db.SaveFileMetadata(fileMeta)
 	// try resolve upload err
 	if errMsg != nil {
-		uploader.engine.PrepareUploadErrCmd(fileMeta, errMsg)
+		cmd := &FileUploadErrCmd{
+			Err:          errMsg,
+			FileMetadata: fileMeta,
+		}
+		cmd.Prepare(uploader.engine)
+		uploader.engine.ExecuteCmdAsync(cmd)
 	}
 	slog.Info("End upload", "file", fileMeta.Id.String(), "size", fileMeta.FileSize, "took(ms)",
 		time.Since(now).Milliseconds())

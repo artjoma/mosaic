@@ -71,12 +71,17 @@ func (api *HttpApi) addShardHandler(ctx *fiber.Ctx) error {
 	if req.Host == "" {
 		return api.writeErrResponse(ctx, http.StatusBadRequest, errors.New("invalid request"))
 	}
-	shardId, err := api.engine.PrepareAddShardsCmd(req.Host)
-	if err != nil {
+	cmd := &engine.AddShardCmd{
+		Host: req.Host,
+	}
+	if err := cmd.Prepare(api.engine); err != nil {
 		return api.writeErrResponse(ctx, http.StatusInternalServerError, err)
 	}
+
+	api.engine.ExecuteCmdAsync(cmd)
+
 	return api.writeResponse(ctx, &AddShardResponse{
-		ShardId: shardId,
+		ShardId: cmd.Id,
 	})
 }
 
@@ -92,13 +97,17 @@ func (api *HttpApi) putFileHandler(ctx *fiber.Ctx) error {
 	}
 	f, err := fileHeader.Open()
 	defer f.Close()
-	fileMetadata, err := api.engine.PreparePutFileCmd(f, fileHeader.Filename)
-	if err != nil {
+
+	cmd := &engine.PutFileCmd{}
+	cmd.SetPrepare(f, fileHeader.Filename)
+
+	if cmd.Prepare(api.engine) != nil {
 		return api.writeErrResponse(ctx, http.StatusInternalServerError, err)
 	}
 
+	api.engine.ExecuteCmdAsync(cmd)
 	return api.writeResponse(ctx, &PutFileResponse{
-		fileMetadata,
+		cmd.FileMetadata,
 	})
 }
 

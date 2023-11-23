@@ -6,14 +6,13 @@ import (
 	"golang.org/x/exp/maps"
 	"log/slog"
 	"mosaic/mosaicdb"
-	"mosaic/types"
 	"sync"
 	"time"
 )
 
-func (engine *Engine) addShardsCmd(cmd *AddShardCmd) error {
+func (cmd *AddShardCmd) Execute() error {
 	slog.Info("Start create new shard", "host", cmd.Host)
-	shards, err := engine.db.GetShards()
+	shards, err := cmd.engine.db.GetShards()
 	if err != nil {
 		return err
 	}
@@ -25,18 +24,18 @@ func (engine *Engine) addShardsCmd(cmd *AddShardCmd) error {
 	// add shard to shards
 	shards.AddShard(shard)
 	// create client
-	engine.storage.AddPeer(shard)
+	cmd.engine.storage.AddPeer(shard)
 	// save list of peers
-	if err := engine.db.SaveShards(shards); err != nil {
+	if err := cmd.engine.db.SaveShards(shards); err != nil {
 		return err
 	}
 	// create record with shard size = 0
-	if err := engine.db.ResetShardSize(maps.Keys(shards.Shards)); err != nil {
+	if err := cmd.engine.db.ResetShardSize(maps.Keys(shards.Shards)); err != nil {
 		return err
 	}
 	slog.Info("Start analyze files count...")
 	// get all files ids
-	ids, err := engine.db.AllMetadata()
+	ids, err := cmd.engine.db.AllMetadata()
 	if err != nil {
 		return err
 	}
@@ -50,7 +49,7 @@ func (engine *Engine) addShardsCmd(cmd *AddShardCmd) error {
 					slog.Info("Rebalanced file", "n", i, "from", len(ids))
 				}
 				// download
-				fMeta, fData, err := engine.DownloadFile(id)
+				fMeta, fData, err := cmd.engine.DownloadFile(id)
 				if err != nil {
 					slog.Error("Failed downloadFile()", "id", id.String(), "err", err.Error())
 				}
@@ -60,17 +59,19 @@ func (engine *Engine) addShardsCmd(cmd *AddShardCmd) error {
 				for _, chunk := range fMeta.Chunks {
 					go func() {
 						defer workers.Done()
-						engine.storage.Remove(chunk.ShardId, chunk.Id)
+						cmd.engine.storage.Remove(chunk.ShardId, chunk.Id)
 					}()
 				}
 				// wait until done
 				workers.Wait()
 
-				engine.commandChan <- &PutFileCmd{
+				cmd.engine.ExecuteCmdAsync(&PutFileCmd{
+					engine:       cmd.engine,
 					FileMetadata: fMeta,
 					FileData:     fData.Bytes(),
-				}
+				})
 			}
+
 			slog.Info("End shards rebalancing", "took", time.Since(now))
 		}()
 	}
@@ -79,16 +80,14 @@ func (engine *Engine) addShardsCmd(cmd *AddShardCmd) error {
 	return nil
 }
 
-func (engine *Engine) PrepareAddShardsCmd(host string) (types.ShardId, error) {
-	shardId := mosaicdb.BuildShardId(host)
-	found := engine.storage.HasShard(shardId)
+func (cmd *AddShardCmd) Prepare(engine *Engine) error {
+	cmd.engine = engine
+	shardId := mosaicdb.BuildShardId(cmd.Host)
+	found := cmd.engine.storage.HasShard(shardId)
+	cmd.Id = shardId
 	if found {
-		return 0, errors.New(fmt.Sprintf("shard with id:%d already reistered", shardId))
-	}
-	engine.commandChan <- &AddShardCmd{
-		Host: host,
-		Id:   shardId,
+		return errors.New(fmt.Sprintf("shard with id:%d already reistered", shardId))
 	}
 
-	return shardId, nil
+	return nil
 }

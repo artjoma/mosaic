@@ -49,26 +49,22 @@ func NewEngine(tempFolder string, db *mosaicdb.Database, dataStorage *storage.St
 	go engine.startCommandListener()
 	return engine, nil
 }
+func (engine *Engine) ExecuteCmdAsync(cmd ProcessorCommand) {
+	engine.commandChan <- cmd
+}
 
 // Process all income commands in single thread.
 // Try process commands a faster as possible.
 // Try to prepare command/finalize command before/after putting command to queue
 // Thinking twice before add new logic
 func (engine *Engine) startCommandListener() {
-	for command := range engine.commandChan {
+	for cmd := range engine.commandChan {
 		now := time.Now()
-		switch cmd := command.(type) {
-		case *PutFileCmd:
-			engine.putFileCmd(cmd)
-		case *AddShardCmd:
-			engine.addShardsCmd(cmd)
-		case *FileUploadErrCmd:
-			engine.fileUploadErrCmd(cmd)
-		default:
-			panic("Command not implemented!")
+		if err := cmd.Execute(); err != nil {
+			slog.Error("Failed to execute", "cmd", cmd.getCmdId(), "err", err.Error())
 		}
 
-		slog.Info("Processor", "cmd", command.getCmdId(), "took(ms)", time.Since(now).Milliseconds())
+		slog.Info("Processor", "cmd", cmd.getCmdId(), "took(ms)", time.Since(now).Milliseconds())
 	}
 }
 

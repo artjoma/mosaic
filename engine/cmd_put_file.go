@@ -19,15 +19,15 @@ import (
 
 const LZ4CmpLevel = lz4.Level7
 
-func (engine *Engine) putFileCmd(cmd *PutFileCmd) error {
+func (cmd *PutFileCmd) Execute() error {
 	fileMeta := cmd.FileMetadata
 	slog.Info("Put", "file", fileMeta.Id.String(), "size", fileMeta.FileSize, "oSize", fileMeta.OriginalFileSize)
-	shardsSize := engine.shardsSize()
+	shardsSize := cmd.engine.shardsSize()
 	slog.Info("Shards", "state", shardsSize)
 	fileDataChunks := splitFileToChunks(fileMeta.FileSize, shardsSize)
 	slog.Info("File chunks", "shards", fileDataChunks)
 	// update shards size
-	engine.db.UpdateShardsSize(fileDataChunks, true)
+	cmd.engine.db.UpdateShardsSize(fileDataChunks, true)
 	// prepare info
 	fileMeta.Chunks = fileChunkToChunkInfo(fileDataChunks)
 
@@ -39,81 +39,84 @@ func (engine *Engine) putFileCmd(cmd *PutFileCmd) error {
 	slog.Info("Chunk", "info", strBuff.String())
 	fileMeta.Status = mosaicdb.FileStatusUploading
 	// update info with status Uploading + chunks info
-	if err := engine.db.SaveFileMetadata(fileMeta); err != nil {
+	if err := cmd.engine.db.SaveFileMetadata(fileMeta); err != nil {
 		return err
 	}
 	// upload file
-	engine.fileUploader.UploadFile(cmd)
+	cmd.engine.fileUploader.UploadFile(cmd)
 
 	return nil
 }
 
-// PreparePutFileCmd put file -> proces file
-func (engine *Engine) PreparePutFileCmd(f multipart.File, originalFName string) (*mosaicdb.FileMetadata, error) {
+// Prepare put file -> proces file
+func (cmd *PutFileCmd) Prepare(engine *Engine) error {
+	cmd.engine = engine
 	// we can't lose file
-	tempFilePath := engine.prepareTempFile()
+	tempFilePath := cmd.prepareTempFile()
 	outFile, err := os.OpenFile(tempFilePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	// TODO Get hash when dump file to disk !
 	// write uploaded file to temp file using LZ4
-	originalFileSize, fileHash, err := engine.compressFile(f, outFile)
+	originalFileSize, fileHash, err := compressFile(cmd.file, outFile)
 	if err != nil {
 		slog.Error("Failed to compress file", "err", err.Error())
-		return nil, err
+		return err
 	}
 
 	// check if file already uploaded
-	checkMeta, err := engine.GetFileMetadata(fileHash)
+	checkMeta, err := cmd.engine.GetFileMetadata(fileHash)
 	if checkMeta != nil {
+		cmd.FileMetadata = checkMeta
 		slog.Info("File already exists", "fId", fileHash.String(), "oSize", checkMeta.OriginalFileSize)
 		// remove temp file
 		os.Remove(tempFilePath)
-		return checkMeta, nil
+		return nil
 	}
 
 	// rename temp file
-	fileName := filepath.Join(engine.tempFolder, fileHash.String())
+	fileName := filepath.Join(cmd.engine.tempFolder, fileHash.String())
 	if err := os.Rename(tempFilePath, fileName); err != nil {
 		slog.Error("Failed to rename", "file", tempFilePath)
-		return nil, err
+		return err
 	}
 
 	// read compressed file to mem
 	fileData, err := os.ReadFile(fileName)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	fMeta := &mosaicdb.FileMetadata{
 		Id:               fileHash,
 		FileSize:         uint64(len(fileData)),
 		OriginalFileSize: originalFileSize,
-		OriginalFileName: originalFName,
+		OriginalFileName: cmd.OriginalFileName,
 		Status:           mosaicdb.FileStatusPending,
 	}
 	// register new file with status Pending
-	if err := engine.db.SaveFileMetadata(fMeta); err != nil {
-		return nil, err
+	if err := cmd.engine.db.SaveFileMetadata(fMeta); err != nil {
+		return err
 	}
 	// we should store files on disk to prevent file loss
-	engine.copyToTempFile(fMeta.Id, fileData)
+	cmd.copyToTempFile(fMeta.Id, fileData)
 	// put to coordinator queue, process new files async
-	engine.commandChan <- &PutFileCmd{FileMetadata: fMeta, FileData: fileData}
-	// unblock API request
-	return fMeta, nil
+	cmd.FileMetadata = fMeta
+	cmd.FileData = fileData
+
+	return nil
 }
 
-func (engine *Engine) prepareTempFile() string {
+func (cmd *PutFileCmd) prepareTempFile() string {
 	now := time.Now()
 	randomStr := utils.RandomString(5)
 	fileName := "tmp_" + strconv.Itoa(int(now.Unix())) + "_" + randomStr
 	slog.Info("API start put", "file", fileName)
-	return filepath.Join(engine.tempFolder, fileName)
+	return filepath.Join(cmd.engine.tempFolder, fileName)
 }
 
-func (engine *Engine) copyToTempFile(fileId types.H256, data []byte) {
-	fPath := filepath.Join(engine.tempFolder, fileId.String())
+func (cmd *PutFileCmd) copyToTempFile(fileId types.H256, data []byte) {
+	fPath := filepath.Join(cmd.engine.tempFolder, fileId.String())
 	err := os.WriteFile(fPath, data, 0644)
 	if err != nil {
 		slog.Error("Failed to write file", "err", err.Error())
@@ -122,7 +125,7 @@ func (engine *Engine) copyToTempFile(fileId types.H256, data []byte) {
 
 // Compress file using LZ4 algo.
 // Return bytes written, H256 of original file, error
-func (engine *Engine) compressFile(in multipart.File, outFile *os.File) (int64, types.H256, error) {
+func compressFile(in multipart.File, outFile *os.File) (int64, types.H256, error) {
 	lzWriter := lz4.NewWriter(outFile)
 	hasher := blake3.New()
 	lzWriter.Apply(lz4.CompressionLevelOption(lz4.Level8))
