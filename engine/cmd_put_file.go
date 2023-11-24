@@ -22,7 +22,10 @@ const LZ4CmpLevel = lz4.Level7
 func (cmd *PutFileCmd) Execute() error {
 	fileMeta := cmd.FileMetadata
 	slog.Info("Put", "file", fileMeta.Id.String(), "size", fileMeta.FileSize, "oSize", fileMeta.OriginalFileSize)
-	shardsSize := cmd.engine.shardsSize()
+	shardsSize, err := cmd.engine.shardsSize()
+	if err != nil {
+		return err
+	}
 	slog.Info("Shards", "state", shardsSize)
 	fileDataChunks := splitFileToChunks(fileMeta.FileSize, shardsSize)
 	slog.Info("File chunks", "shards", fileDataChunks)
@@ -66,7 +69,7 @@ func (cmd *PutFileCmd) Prepare(engine *Engine) error {
 	}
 
 	// check if file already uploaded
-	checkMeta, err := cmd.engine.GetFileMetadata(fileHash)
+	checkMeta, err := cmd.engine.db.GetFileMetadataById(fileHash)
 	if checkMeta != nil {
 		cmd.FileMetadata = checkMeta
 		slog.Info("File already exists", "fId", fileHash.String(), "oSize", checkMeta.OriginalFileSize)

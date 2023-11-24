@@ -10,7 +10,7 @@ Mosaic is POC of distributed file storage.
  * API allow concurrently upload and download files.
  * File chunks id and file id based on Blake3s hash function.
  * HTTP API with common functionality.
-### Limitation
+### Limitations
  * Max file chunk per shard 512Mb
 
 ### HTTP API

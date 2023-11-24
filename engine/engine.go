@@ -69,18 +69,17 @@ func (engine *Engine) startCommandListener() {
 }
 
 // shardsSize return
-func (engine *Engine) shardsSize() map[types.ShardId]uint64 {
+func (engine *Engine) shardsSize() (map[types.ShardId]uint64, error) {
 	shardsSize := make(map[types.ShardId]uint64)
 	for _, id := range engine.storage.GetPeersId() {
 		size, err := engine.db.GetShardSize(id)
 		if err != nil {
 			slog.Error("Failed to call engine.db.GetShardSize(id)", "id", id, "err", err)
-			// TODO here should be smart exception processing, not a panic!
-			panic("Failed to call engine.db.GetShardSize(id)")
+			return nil, err
 		}
 		shardsSize[id] = size
 	}
-	return shardsSize
+	return shardsSize, nil
 }
 
 func (engine *Engine) removeTempFile(fileId types.H256) error {
