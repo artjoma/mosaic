@@ -17,17 +17,17 @@ import (
 func TestFileUploader(t *testing.T) {
 	database := mosaicdb.NewDatabase("")
 	storage := storage.NewStorage()
-	engine, err := NewEngine("/tmp/masaic/temp", database, storage, 10, 10)
+	engine, err := NewEngine("/tmp/masaic/temp", database, storage, 10)
 	if err != nil {
 		panic(err)
 	}
 	host := fmt.Sprintf("0.0.0.0:%d", utils.TestPortRangeFrom)
-	engine.addShardsCmd(&AddShardCmd{
+	engine.ExecuteCmdAsync(&AddShardCmd{
 		Host: host,
 		Id:   mosaicdb.BuildShardId(host),
 	})
 	host = fmt.Sprintf("0.0.0.0:%d", utils.TestPortRangeFrom+1)
-	engine.addShardsCmd(&AddShardCmd{
+	engine.ExecuteCmdAsync(&AddShardCmd{
 		Host: host,
 		Id:   mosaicdb.BuildShardId(host),
 	})
@@ -36,8 +36,16 @@ func TestFileUploader(t *testing.T) {
 	filePath := "/tmp/test.f"
 	os.WriteFile(filePath, fileData, 0774)
 	file, _ := os.Open(filePath)
-	fileMeta, err := engine.PreparePutFileCmd(file, "some")
-	fileId := fileMeta.Id
+
+	cmd := &PutFileCmd{
+		engine:           engine,
+		file:             file,
+		OriginalFileName: "some",
+	}
+	if err = cmd.Prepare(engine); err != nil {
+		panic(err)
+	}
+	fileId := cmd.FileMetadata.Id
 	slog.Info("File", "id", fileId.String())
 	// TODO check DB when file status changed to ready
 	time.Sleep(time.Second * 2)
