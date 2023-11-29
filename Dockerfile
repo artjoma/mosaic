@@ -1,10 +1,5 @@
-# Support setting various labels on the final image
-ARG COMMIT=""
-ARG VERSION="1.0.0"
-ARG BUILDNUM=""
-
 # Build Geth in a stock Go builder container
-FROM golang:1.21-alpine as builder
+FROM golang:alpine as builder
 
 RUN apk update --no-cache && apk add --no-cache tzdata linux-headers
 
@@ -25,10 +20,3 @@ COPY --from=builder /mosaic/build/mosaic /usr/local/bin/
 
 EXPOSE 25010
 ENTRYPOINT ["mosaic"]
-
-# Add some metadata labels to help programatic image consumption
-ARG COMMIT=""
-ARG VERSION=""
-ARG BUILDNUM=""
-
-LABEL commit="$COMMIT" version="$VERSION" buildnum="$BUILDNUM"
