@@ -27,6 +27,7 @@ func main() {
 
 	<-sigs
 	cancelCtx()
+	slog.Info("exit from main()")
 }
 
 func setup(appCfg *types.AppConfig) context.CancelFunc {
