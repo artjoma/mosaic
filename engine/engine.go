@@ -2,6 +2,7 @@ package engine
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"github.com/cockroachdb/pebble"
 	"log/slog"
@@ -20,9 +21,10 @@ type Engine struct {
 	commandChan    chan ProcessorCommand
 	fileUploader   *FileUploader
 	fileDownloader *FileDownloader
+	appCtx         context.Context
 }
 
-func NewEngine(tempFolder string, db *mosaicdb.Database, dataStorage *storage.Storage,
+func NewEngine(appCtx context.Context, tempFolder string, db *mosaicdb.Database, dataStorage *storage.Storage,
 	uploadWorkersCount int) (*Engine, error) {
 	// create folder if not exists
 	err := os.MkdirAll(tempFolder, 0774)
@@ -33,6 +35,7 @@ func NewEngine(tempFolder string, db *mosaicdb.Database, dataStorage *storage.St
 		db:             db,
 		storage:        dataStorage,
 		fileDownloader: NewFileDownloader(dataStorage),
+		appCtx:         appCtx,
 	}
 	engine.fileUploader = NewFileUploader(engine, uploadWorkersCount)
 	// prepare peers clients
@@ -58,13 +61,19 @@ func (engine *Engine) ExecuteCmdAsync(cmd ProcessorCommand) {
 // Try to prepare command/finalize command before/after putting command to queue
 // Thinking twice before add new logic
 func (engine *Engine) startCommandListener() {
-	for cmd := range engine.commandChan {
-		now := time.Now()
-		if err := cmd.Execute(); err != nil {
-			slog.Error("Failed to execute", "cmd", cmd.getCmdId(), "err", err.Error())
-		}
+	for {
+		select {
+		case <-engine.appCtx.Done():
+			slog.Info("Finalize command listener")
+			return
+		case cmd := <-engine.commandChan:
+			now := time.Now()
+			if err := cmd.Execute(); err != nil {
+				slog.Error("Failed to execute", "cmd", cmd.getCmdId(), "err", err.Error())
+			}
 
-		slog.Info("Processor", "cmd", cmd.getCmdId(), "took(ms)", time.Since(now).Milliseconds())
+			slog.Info("Processor", "cmd", cmd.getCmdId(), "took(ms)", time.Since(now).Milliseconds())
+		}
 	}
 }
 

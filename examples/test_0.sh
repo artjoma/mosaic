@@ -1,3 +1,5 @@
+set -x
+
 # prepare folders
 mkdir -p download
 # download files after fresh setup
