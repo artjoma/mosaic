@@ -1,8 +1,8 @@
 package engine
 
 import (
-	"errors"
 	"fmt"
+	"github.com/gofiber/fiber/v2/log"
 	"golang.org/x/exp/maps"
 	"log/slog"
 	"mosaic/mosaicdb"
@@ -56,11 +56,13 @@ func (cmd *AddShardCmd) Execute() error {
 				// async remove file parts from shards
 				workers := sync.WaitGroup{}
 				workers.Add(len(fMeta.Chunks))
-				for _, chunk := range fMeta.Chunks {
-					go func() {
+				for _, chunkModel := range fMeta.Chunks {
+					go func(chunk *mosaicdb.ChunkInfo) {
 						defer workers.Done()
-						cmd.engine.storage.Remove(chunk.ShardId, chunk.Id)
-					}()
+						if err := cmd.engine.storage.Remove(chunk.ShardId, chunk.Id); err != nil {
+							log.Errorf("Faield to remove shardId:%d chunkId:%s err:%s", chunk.ShardId, chunk.Id.String(), err.Error())
+						}
+					}(chunkModel)
 				}
 				// wait until done
 				workers.Wait()
@@ -86,7 +88,7 @@ func (cmd *AddShardCmd) Prepare(engine *Engine) error {
 	found := cmd.engine.storage.HasShard(shardId)
 	cmd.Id = shardId
 	if found {
-		return errors.New(fmt.Sprintf("shard with id:%d already reistered", shardId))
+		return fmt.Errorf("shard with id:%d already registered", shardId)
 	}
 
 	return nil

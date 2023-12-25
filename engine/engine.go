@@ -43,7 +43,9 @@ func NewEngine(appCtx context.Context, tempFolder string, db *mosaicdb.Database,
 	if errors.Is(err, pebble.ErrNotFound) {
 		slog.Info("Shards not found")
 		// save empty lists
-		db.SaveShards(mosaicdb.NewShards())
+		if err := db.SaveShards(mosaicdb.NewShards()); err != nil {
+			return nil, err
+		}
 	} else {
 		for _, shard := range shards.Shards {
 			dataStorage.AddPeer(shard)

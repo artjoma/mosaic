@@ -15,7 +15,7 @@ func splitFileToChunks(fileSize uint64, shardsSize map[types.ShardId]uint64) map
 	// split remainder over all peers, related to peers Min(sizes) and Max(sizes)
 	values := maps.Values(shardsSize)
 	maxSize := slices.Max(values)
-	//Sort ASC by shard size
+	// Sort ASC by shard size
 	sizes := mapToSortedArray(shardsSize, 1)
 	// totalDiff how many bytes we should add to all shards till shard with max size
 	totalDiff := uint64(0)

@@ -30,7 +30,9 @@ func (cmd *PutFileCmd) Execute() error {
 	fileDataChunks := splitFileToChunks(fileMeta.FileSize, shardsSize)
 	slog.Info("File chunks", "shards", fileDataChunks)
 	// update shards size
-	cmd.engine.db.UpdateShardsSize(fileDataChunks, true)
+	if err := cmd.engine.db.UpdateShardsSize(fileDataChunks, true); err != nil {
+		return err
+	}
 	// prepare info
 	fileMeta.Chunks = fileChunkToChunkInfo(fileDataChunks)
 

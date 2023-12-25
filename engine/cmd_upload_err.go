@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"github.com/gofiber/fiber/v2/log"
 	"log/slog"
 )
 
@@ -30,7 +31,9 @@ func (cmd *FileUploadErrCmd) Execute() error {
 			slog.Info("End remove chunk", "sId", chunk.ShardId, "id", chunk.Id.String())
 		}
 
-		cmd.engine.removeTempFile(fileMeta.Id)
+		if err := cmd.engine.removeTempFile(fileMeta.Id); err != nil {
+			log.Errorf("Failed to remove temp file with id:%s err:%s", fileMeta.Id.String(), err.Error())
+		}
 	}()
 
 	return nil

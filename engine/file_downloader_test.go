@@ -61,6 +61,9 @@ func TestFileUploader(t *testing.T) {
 		t.Fatal(err)
 	}
 	fileUncp, err := io.ReadAll(zr)
+	if err != nil {
+		panic(err)
+	}
 
 	err = os.WriteFile("/tmp/test.pdf", fileUncp, 0774)
 
