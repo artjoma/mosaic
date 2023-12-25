@@ -33,7 +33,9 @@ func RandomString(count int) string {
 
 func RandomBytes(count int) []byte {
 	buf := make([]byte, count)
-	cp.Read(buf)
+	if _, err := cp.Read(buf); err != nil {
+		panic(err)
+	}
 	return buf
 }
 
@@ -81,6 +83,8 @@ func Btou32(val []byte) uint32 {
 
 func HashFrom(data []byte) types.H256 {
 	hasher := blake3.New()
-	hasher.Write(data)
+	if _, err := hasher.Write(data); err != nil {
+		panic(err)
+	}
 	return hasher.Sum(nil)
 }

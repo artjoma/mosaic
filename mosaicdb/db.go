@@ -33,9 +33,9 @@ func NewDatabase(dbPath string) *Database {
 		slog.Info("Initialize db", "path", dbPath)
 		os.MkdirAll(dbPath, 0774)
 		db, err = pebble.Open(dbPath, &pebble.Options{})
-		if err != nil {
-			panic(err)
-		}
+	}
+	if err != nil {
+		panic(err)
 	}
 	return &Database{
 		db: db,

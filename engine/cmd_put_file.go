@@ -70,6 +70,9 @@ func (cmd *PutFileCmd) Prepare(engine *Engine) error {
 
 	// check if file already uploaded
 	checkMeta, err := cmd.engine.db.GetFileMetadataById(fileHash)
+	if err != nil {
+		return err
+	}
 	if checkMeta != nil {
 		cmd.FileMetadata = checkMeta
 		slog.Info("File already exists", "fId", fileHash.String(), "oSize", checkMeta.OriginalFileSize)

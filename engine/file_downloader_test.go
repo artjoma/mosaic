@@ -2,6 +2,7 @@ package engine
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"github.com/pierrec/lz4/v4"
 	"io"
@@ -17,7 +18,7 @@ import (
 func TestFileUploader(t *testing.T) {
 	database := mosaicdb.NewDatabase("")
 	storage := storage.NewStorage()
-	engine, err := NewEngine("/tmp/masaic/temp", database, storage, 10)
+	engine, err := NewEngine(context.Background(), "/tmp/masaic/temp", database, storage, 10)
 	if err != nil {
 		panic(err)
 	}

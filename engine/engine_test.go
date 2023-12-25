@@ -42,16 +42,6 @@ func buildShardState() map[types.ShardId]uint64 {
 	return shards
 }
 
-func buildShardState2() map[types.ShardId]uint64 {
-	shards := map[types.ShardId]uint64{
-		1: 10,
-		2: 8,
-		3: 12,
-		4: 11,
-	}
-	return shards
-}
-
 func buildShardState3() map[types.ShardId]uint64 {
 	shards := map[types.ShardId]uint64{
 		1: 10,

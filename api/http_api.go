@@ -96,6 +96,9 @@ func (api *HttpApi) putFileHandler(ctx *fiber.Ctx) error {
 		return api.writeErrResponse(ctx, http.StatusBadRequest, errors.New("got content length < 2"))
 	}
 	f, err := fileHeader.Open()
+	if err != nil {
+		return err
+	}
 	defer f.Close()
 
 	cmd := &engine.PutFileCmd{}
@@ -121,20 +124,21 @@ func (api *HttpApi) downloadFileHandler(ctx *fiber.Ctx) error {
 		return api.writeErrResponse(ctx, http.StatusBadRequest, errors.New("invalid request"))
 	}
 	_, buff, err := api.engine.DownloadFile(fId)
-
+	if err != nil {
+		return err
+	}
 	zr := lz4.NewReader(buff)
 	if err := zr.Apply(lz4.ConcurrencyOption(4)); err != nil {
 		return err
 	}
 
-	ctx.SendStream(zr)
-	return err
+	return ctx.SendStream(zr)
 }
 
 // TODO For browsers use attachment+file name
-func (api *HttpApi) downloadFileAttachHandler(ctx *fiber.Ctx) error {
-	return nil
-}
+// func (api *HttpApi) downloadFileAttachHandler(ctx *fiber.Ctx) error {
+//	return nil
+// }
 
 func (api *HttpApi) getFileMetadata(ctx *fiber.Ctx) error {
 	fIdParam := ctx.Params("fId")

@@ -17,7 +17,9 @@ func (cmd *FileUploadErrCmd) Execute() error {
 	err := cmd.Err
 	slog.Info("Try resolve upload err", "fId", fileMeta.Id.String(), "err", err.Error())
 	// decrease used space by file
-	cmd.engine.db.UpdateShardsSize(fileMeta.UsedSpace(), false)
+	if err := cmd.engine.db.UpdateShardsSize(fileMeta.UsedSpace(), false); err != nil {
+		return err
+	}
 	// async free resources on shards
 	go func() {
 		for _, chunk := range fileMeta.Chunks {
